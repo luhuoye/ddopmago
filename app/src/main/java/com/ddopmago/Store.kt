@@ -1,0 +1,55 @@
+package com.ddopmago
+
+import android.content.Context
+import androidx.compose.runtime.mutableStateListOf
+import org.json.JSONArray
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+
+class Store(ctx: Context) {
+    private val sp = ctx.getSharedPreferences("yi_fav", Context.MODE_PRIVATE)
+    val favS = mutableStateListOf<Sent>()
+    val favQ = mutableStateListOf<Q>()
+    val scores = mutableStateListOf<String>() // "时间|分数"
+
+    fun paperBest(id: Int): Int? = sp.getInt("pb_$id", -1).takeIf { it >= 0 }
+    fun setPaperBest(id: Int, s: Int) { if (s > (paperBest(id) ?: -1)) sp.edit().putInt("pb_$id", s).apply() }
+
+    fun best(): Int? = scores.maxOfOrNull { it.substringAfter("|").toIntOrNull() ?: 0 }
+
+    fun addScore(s: Int) {
+        scores.add(0, SimpleDateFormat("MM-dd HH:mm", Locale.CHINA).format(Date()) + "|" + s)
+        while (scores.size > 30) scores.removeAt(scores.size - 1)
+        sp.edit().putString("sc", scores.joinToString(";")).apply()
+    }
+
+    init {
+        scores.addAll((sp.getString("sc", "") ?: "").split(";").filter { it.isNotBlank() })
+        runCatching {
+            val a = JSONArray(sp.getString("s", "[]"))
+            for (i in 0 until a.length()) favS.add(Sent.from(a.getJSONObject(i)))
+            val b = JSONArray(sp.getString("q", "[]"))
+            for (i in 0 until b.length()) favQ.add(Q.from(b.getJSONObject(i)))
+        }
+    }
+
+    private fun save() {
+        sp.edit()
+            .putString("s", JSONArray(favS.map { it.toJson() }).toString())
+            .putString("q", JSONArray(favQ.map { it.toJson() }).toString())
+            .apply()
+    }
+
+    fun toggleS(s: Sent) {
+        val i = favS.indexOfFirst { it.yi == s.yi && it.zh == s.zh }
+        if (i >= 0) favS.removeAt(i) else favS.add(0, s)
+        save()
+    }
+
+    fun toggleQ(q: Q) {
+        val i = favQ.indexOfFirst { it.id == q.id }
+        if (i >= 0) favQ.removeAt(i) else favQ.add(0, q)
+        save()
+    }
+}
