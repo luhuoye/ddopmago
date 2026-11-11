@@ -50,7 +50,10 @@ object Repo {
     fun isYi(c: Char) = c.code in 0xA000..0xA48C
     fun isHan(c: Char) = c.code in 0x4E00..0x9FFF
     fun rom(c: Char): String? = map[c]
-    fun pinyin(s: String) = s.filter { isYi(it) }.joinToString(" ") { map[it] ?: "?" }
+    
+    // 【已修复】先 filter 筛选彝文字符，再 map 转换为拼音列表，最后 joinToString
+    fun pinyin(s: String) = s.filter { isYi(it) }.map { map[it] ?: "?" }.joinToString(" ")
+    
     fun hasYi(s: String) = s.any { isYi(it) }
     fun dictSize() = dictS.size
 
